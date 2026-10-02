@@ -107,6 +107,21 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
     case Qt::Key_Delete:        // Delete 等价于 CE：只清当前输入
         handleAction(QStringLiteral("CE"));
         break;
+    case Qt::Key_F9:            // F9 等价于 ±：取反
+        handleAction(QStringLiteral("neg"));
+        break;
+    case Qt::Key_R:             // R 等价于 √：平方根
+        handleAction(QStringLiteral("sqrt"));
+        break;
+    case Qt::Key_Q:             // Q 等价于 x²：平方
+        handleAction(QStringLiteral("sqr"));
+        break;
+    case Qt::Key_I:             // I 等价于 1/x：倒数
+        handleAction(QStringLiteral("recip"));
+        break;
+    case Qt::Key_Percent:       // Shift+5 等价于 %：百分比
+        handleAction(QStringLiteral("percent"));
+        break;
     default:
         QMainWindow::keyPressEvent(event);
         return;
