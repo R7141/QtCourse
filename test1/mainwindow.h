@@ -30,9 +30,11 @@ private slots:
 private:
     // ===== 鼠标与键盘共用的唯一动作处理入口 =====
     // action 取值："0"~"9" "." "+" "-" "*" "/" "=" "C" "CE" "backspace"
+    //             "neg" "percent" "sqrt" "sqr" "recip"
     void handleAction(const QString &action);
 
     double calculate(double a, QChar op, double b, bool *ok) const;
+    void applyUnary(const QString &kind);        // 一元运算：neg/percent/sqrt/sqr/recip
     QString formatResult(double value) const;   // 结果格式化：去掉多余的尾随 0
     void setError(const QString &msg);          // 进入错误态，仅 C/CE 可退出
     void render();                              // 依据状态刷新显示区
@@ -47,6 +49,7 @@ private:
     QChar   m_lastOp;               // 上次按 = 时的运算符，用于连续按 =
     double  m_lastOperand = 0;      // 上次按 = 时的第二操作数
     bool    m_resultShown = false;  // 显示区当前是计算结果，下一次数字输入要重新开始
+    bool    m_inputIsResult = false; // 当前操作数是一元运算产生的结果，续输数字时重新开始
     bool    m_errorState = false;   // 错误态（如除数为 0），只响应 C/CE
     QString m_errorText;            // 错误提示文本
 };

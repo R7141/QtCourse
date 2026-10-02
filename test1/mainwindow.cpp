@@ -5,6 +5,7 @@
 #include <QHash>
 #include <QKeyEvent>
 #include <QPushButton>
+#include <cmath>
 
 namespace {
 // 运算符显示符号：与界面上的 × ÷ 保持一致
@@ -17,9 +18,11 @@ QString opSymbol(QChar op)
     return QString(op);
 }
 
+// 单个操作数的最大输入长度：double 有效数字约 17 位，同时避免显示区超宽
+const int kMaxInputLength = 16;
+
 // 按钮 objectName -> 统一动作字符串。
 // 鼠标点击与键盘输入最终都转换成同样的 action，共用 handleAction 这一套逻辑。
-// 扩展功能键（% ± √ x² 1/x）在后续提交中登记。
 const QHash<QString, QString> kButtonActions = {
     {"but0", "0"},   {"but1", "1"},   {"but2", "2"},   {"but3", "3"},
     {"but4", "4"},   {"but5", "5"},   {"but6", "6"},   {"but7", "7"},
@@ -27,6 +30,9 @@ const QHash<QString, QString> kButtonActions = {
     {"butadd", "+"}, {"butminus", "-"}, {"butmultiply", "*"}, {"butdivide", "/"},
     {"butequal", "="},
     {"butC", "C"},   {"butCE", "CE"}, {"butdelete", "backspace"},
+    // 扩展功能键
+    {"butplusminus", "neg"},     {"butpercent", "percent"},
+    {"butsquareroot", "sqrt"},   {"butsquare", "sqr"}, {"butreciprocal", "recip"},
 };
 } // namespace
 
@@ -41,7 +47,7 @@ MainWindow::MainWindow(QWidget *parent)
     for (QPushButton *btn : buttons) {
         const QString action = kButtonActions.value(btn->objectName());
         if (action.isEmpty())
-            continue; // 扩展键尚未接入，后续提交处理
+            continue; // objectName 未登记的按钮不接入
         btn->setProperty("action", action);
         connect(btn, &QPushButton::clicked, this, &MainWindow::onButtonClicked);
     }
@@ -126,6 +132,13 @@ void MainWindow::handleAction(const QString &action)
     // ---- 数字输入 ----
     if (action.size() == 1 && action.at(0).isDigit()) {
         prepareNewOperand();
+        // 一元运算刚得到的结果视为新操作数的开始，续输数字时重新开始而不是拼接
+        if (m_inputIsResult) {
+            m_currentInput.clear();
+            m_inputIsResult = false;
+        }
+        if (m_currentInput.size() >= kMaxInputLength)
+            return; // 超过长度上限：忽略，防止溢出 double 精度与显示区
         // 去掉多余的前导 0：单独的 "0" 再按数字时被新数字替换
         if (m_currentInput == "0" || m_currentInput == "-0")
             m_currentInput = (m_currentInput.startsWith('-') ? QStringLiteral("-") : QString())
@@ -139,6 +152,12 @@ void MainWindow::handleAction(const QString &action)
     // ---- 小数点：同一操作数内只允许一个 ----
     if (action == ".") {
         prepareNewOperand();
+        if (m_inputIsResult) {
+            m_currentInput.clear();
+            m_inputIsResult = false;
+        }
+        if (m_currentInput.size() >= kMaxInputLength)
+            return;
         if (m_currentInput.contains(QLatin1Char('.')))
             return; // 连续小数点：直接忽略，不改变状态
         if (m_currentInput.isEmpty())
@@ -157,6 +176,7 @@ void MainWindow::handleAction(const QString &action)
                 // 第一操作数输入完毕，记为累加器并等待第二操作数
                 m_accumulator = m_currentInput.toDouble();
                 m_currentInput.clear();
+                m_inputIsResult = false;
             } else {
                 // 连续运算：第二操作数已输入，先算出中间结果再挂起新的运算符
                 bool ok = false;
@@ -166,8 +186,13 @@ void MainWindow::handleAction(const QString &action)
                     setError(QStringLiteral("错误:除数不能为0"));
                     return;
                 }
+                if (!std::isfinite(r)) {
+                    setError(QStringLiteral("错误:数值溢出"));
+                    return;
+                }
                 m_accumulator = r;
                 m_currentInput.clear();
+                m_inputIsResult = false;
             }
         }
         // 输入为空时：已有运算符则只替换（连续按运算符的异常输入），否则以当前显示值为第一操作数
@@ -189,6 +214,10 @@ void MainWindow::handleAction(const QString &action)
                 setError(QStringLiteral("错误:除数不能为0"));
                 return;
             }
+            if (!std::isfinite(r)) {
+                setError(QStringLiteral("错误:数值溢出"));
+                return;
+            }
             m_accumulator = r;
             m_resultShown = true;
             render();
@@ -204,11 +233,16 @@ void MainWindow::handleAction(const QString &action)
             setError(QStringLiteral("错误:除数不能为0"));
             return;
         }
+        if (!std::isfinite(r)) {
+            setError(QStringLiteral("错误:数值溢出"));
+            return;
+        }
         m_lastOp = m_pendingOp;      // 记录本次运算，供连续按 = 重复执行
         m_lastOperand = b;
         m_accumulator = r;
         m_pendingOp = QChar();
         m_currentInput.clear();
+        m_inputIsResult = false;
         m_resultShown = true;
         render();
         return;
@@ -222,6 +256,7 @@ void MainWindow::handleAction(const QString &action)
         m_lastOp = QChar();
         m_lastOperand = 0;
         m_resultShown = false;
+        m_inputIsResult = false;
         m_errorState = false;
         m_errorText.clear();
         render();
@@ -232,18 +267,40 @@ void MainWindow::handleAction(const QString &action)
     if (action == "CE") {
         m_errorState = false;
         m_errorText.clear();
+        m_inputIsResult = false;
+        if (m_resultShown && m_currentInput.isEmpty()) {
+            // 结果就是当前"操作数"：CE 应把显示清零，否则看起来无反应
+            m_accumulator = 0;
+            m_lastOp = QChar();
+            m_lastOperand = 0;
+            m_resultShown = false;
+        }
         m_currentInput.clear();
         render();
         return;
     }
 
+    // ---- 扩展的一元运算：± % √ x² 1/x ----
+    if (action == "neg" || action == "percent" || action == "sqrt" || action == "sqr"
+        || action == "recip") {
+        applyUnary(action);
+        return;
+    }
+
     // ---- 退格：只在输入过程中生效 ----
     if (action == "backspace") {
-        if (m_resultShown || m_currentInput.isEmpty())
+        if (m_resultShown || m_currentInput.isEmpty()) {
+            // 输入为空但已挂起运算符时，退格应能撤销该运算符（如 "12 +" → "12"）
+            if (!m_resultShown && m_currentInput.isEmpty() && !m_pendingOp.isNull()) {
+                m_pendingOp = QChar(); // 撤销挂起的运算符后回到第一操作数
+                render();
+            }
             return; // 结果态/空输入直接忽略，避免越界删除（原实现会出错）
+        }
         m_currentInput.chop(1);
         if (m_currentInput == "-")
             m_currentInput.clear(); // 光删掉负号时退回空输入
+        m_inputIsResult = false;    // 用户已在手工编辑，不再按"新操作数"处理
         render();
         return;
     }
@@ -254,6 +311,72 @@ void MainWindow::handleAction(const QString &action)
 // ============================================================================
 // 辅助函数
 // ============================================================================
+
+// 一元运算：作用于"正在输入的操作数"，没有输入时作用于当前显示的结果。
+// 结果写回状态机后复用 render()，与二元运算共用显示逻辑。
+//   neg:±取反  percent:÷100  sqrt:平方根  sqr:平方  recip:倒数
+void MainWindow::applyUnary(const QString &kind)
+{
+    const bool hasInput = !m_currentInput.isEmpty();
+    const double v = hasInput ? m_currentInput.toDouble() : m_accumulator;
+
+    // 结果写到哪里：有输入→更新操作数文本；无输入→更新累加器（结果）
+    const auto commit = [this, hasInput](double r, const QString &text) {
+        if (!std::isfinite(r)) {
+            setError(QStringLiteral("错误:数值溢出"));
+            return;
+        }
+        if (hasInput) {
+            m_currentInput = text;
+            m_inputIsResult = true; // 计算得到的值，续输数字时重新开始
+        } else {
+            // 无输入时作用于当前显示值；有挂起运算符时仍在等第二操作数，
+            // 不能置 resultShown，否则续输数字会清掉挂起的运算符
+            m_accumulator = r;
+            m_resultShown = m_pendingOp.isNull();
+        }
+        render();
+    };
+
+    if (kind == "neg") {
+        if (hasInput) {
+            // 保留输入文本形态（如 "0." → "-0."），避免丢失小数点
+            if (m_currentInput.startsWith(QLatin1Char('-')))
+                m_currentInput.remove(0, 1);
+            else
+                m_currentInput.prepend(QLatin1Char('-'));
+            render();
+        } else {
+            commit(-v, QString());
+        }
+        return;
+    }
+    if (kind == "percent") {
+        commit(v / 100.0, formatResult(v / 100.0));
+        return;
+    }
+    if (kind == "sqrt") {
+        if (v < 0) {
+            setError(QStringLiteral("错误:负数不能开平方"));
+            return;
+        }
+        commit(std::sqrt(v), formatResult(std::sqrt(v)));
+        return;
+    }
+    if (kind == "sqr") {
+        commit(v * v, formatResult(v * v));
+        return;
+    }
+    if (kind == "recip") {
+        if (qFuzzyIsNull(v)) {
+            setError(QStringLiteral("错误:除数不能为0"));
+            return;
+        }
+        commit(1.0 / v, formatResult(1.0 / v));
+        return;
+    }
+    qWarning("未处理的一元运算: %s", qPrintable(kind));
+}
 
 // 四则运算；除数为 0 时返回 ok=false，由调用方进入错误态
 double MainWindow::calculate(double a, QChar op, double b, bool *ok) const
@@ -289,6 +412,7 @@ void MainWindow::setError(const QString &msg)
     m_errorState = true;
     m_errorText = msg;
     m_currentInput.clear();
+    m_inputIsResult = false;
     ui->display->setText(msg);
 }
 
@@ -303,6 +427,7 @@ void MainWindow::prepareNewOperand()
     m_lastOperand = 0;
     m_currentInput.clear();
     m_resultShown = false;
+    m_inputIsResult = false;
 }
 
 // 显示规则：错误信息 > 运算中的表达式（第一操作数 运算符 第二操作数） > 正在输入的操作数 > 结果
