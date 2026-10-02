@@ -3,6 +3,7 @@
 
 #include <QDebug>
 #include <QHash>
+#include <QKeyEvent>
 #include <QPushButton>
 
 namespace {
@@ -60,6 +61,59 @@ void MainWindow::onButtonClicked()
         handleAction(action);
 }
 
+// ============================================================================
+// 键盘事件：按键 -> 动作字符串 -> 与鼠标完全相同的 handleAction
+// ============================================================================
+void MainWindow::keyPressEvent(QKeyEvent *event)
+{
+    // 小键盘按键 = 主键 + KeypadModifier（如小键盘 + 返回 Key_Plus|KeypadModifier），
+    // 去掉修饰键后可用同一套分支处理
+    const int key = event->key();
+
+    // 数字键（含小键盘：小键盘数字同样返回 Key_0~Key_9）
+    if (key >= Qt::Key_0 && key <= Qt::Key_9) {
+        handleAction(QString::number(key - Qt::Key_0));
+        return;
+    }
+
+    switch (key) {
+    case Qt::Key_Period:        // 主键盘 / 小键盘小数点（小键盘为 Key_Period+KeypadModifier）
+    case Qt::Key_Comma:         // 部分键盘布局用逗号
+        handleAction(QStringLiteral("."));
+        break;
+    case Qt::Key_Plus:          // 主键盘与小键盘的 + - * /
+        handleAction(QStringLiteral("+"));
+        break;
+    case Qt::Key_Minus:
+        handleAction(QStringLiteral("-"));
+        break;
+    case Qt::Key_Asterisk:
+        handleAction(QStringLiteral("*"));
+        break;
+    case Qt::Key_Slash:
+        handleAction(QStringLiteral("/"));
+        break;
+    case Qt::Key_Enter:         // 回车（主键盘）
+    case Qt::Key_Return:        // 小键盘回车
+    case Qt::Key_Equal:         // 主键盘 =
+        handleAction(QStringLiteral("="));
+        break;
+    case Qt::Key_Backspace:
+        handleAction(QStringLiteral("backspace"));
+        break;
+    case Qt::Key_Escape:        // Esc 等价于 C：全部清除
+        handleAction(QStringLiteral("C"));
+        break;
+    case Qt::Key_Delete:        // Delete 等价于 CE：只清当前输入
+        handleAction(QStringLiteral("CE"));
+        break;
+    default:
+        // 未识别的按键交给基类处理（保持原有快捷键等默认行为）
+        QMainWindow::keyPressEvent(event);
+        return;
+    }
+    event->accept();
+}
 // ============================================================================
 // 统一动作处理：数字 / 小数点 / 运算符 / 等号 / 清除 / 退格
 // ============================================================================

@@ -18,6 +18,11 @@ public:
     explicit MainWindow(QWidget *parent = nullptr);
     ~MainWindow() override;
 
+protected:
+    // 键盘事件：把按键翻译成与鼠标点击完全相同的 action，
+    // 再交给 handleAction，保证两套输入走同一套处理逻辑
+    void keyPressEvent(QKeyEvent *event) override;
+
 private slots:
     // 所有按钮共用的槽：读取按钮上登记的 action 属性，转发给 handleAction
     void onButtonClicked();
