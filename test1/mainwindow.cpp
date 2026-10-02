@@ -8,7 +8,6 @@
 #include <cmath>
 
 namespace {
-// 运算符显示符号：与界面上的 × ÷ 保持一致
 QString opSymbol(QChar op)
 {
     if (op == QLatin1Char('*'))
@@ -18,11 +17,8 @@ QString opSymbol(QChar op)
     return QString(op);
 }
 
-// 单个操作数的最大输入长度：double 有效数字约 17 位，同时避免显示区超宽
 const int kMaxInputLength = 16;
 
-// 按钮 objectName -> 统一动作字符串。
-// 鼠标点击与键盘输入最终都转换成同样的 action，共用 handleAction 这一套逻辑。
 const QHash<QString, QString> kButtonActions = {
     {"but0", "0"},   {"but1", "1"},   {"but2", "2"},   {"but3", "3"},
     {"but4", "4"},   {"but5", "5"},   {"but6", "6"},   {"but7", "7"},
@@ -42,12 +38,12 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    // 统一连接：遍历所有按钮登记动作，避免为每个按钮写一段重复的 connect
+    // 统一连接
     const QList<QPushButton *> buttons = findChildren<QPushButton *>();
     for (QPushButton *btn : buttons) {
         const QString action = kButtonActions.value(btn->objectName());
         if (action.isEmpty())
-            continue; // objectName 未登记的按钮不接入
+            continue;
         btn->setProperty("action", action);
         connect(btn, &QPushButton::clicked, this, &MainWindow::onButtonClicked);
     }
@@ -67,9 +63,7 @@ void MainWindow::onButtonClicked()
         handleAction(action);
 }
 
-// ============================================================================
 // 键盘事件：按键 -> 动作字符串 -> 与鼠标完全相同的 handleAction
-// ============================================================================
 void MainWindow::keyPressEvent(QKeyEvent *event)
 {
     // 小键盘按键 = 主键 + KeypadModifier（如小键盘 + 返回 Key_Plus|KeypadModifier），
@@ -83,7 +77,7 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
     }
 
     switch (key) {
-    case Qt::Key_Period:        // 主键盘 / 小键盘小数点（小键盘为 Key_Period+KeypadModifier）
+    case Qt::Key_Period:        // 主键盘 / 小键盘小数点
     case Qt::Key_Comma:         // 部分键盘布局用逗号
         handleAction(QStringLiteral("."));
         break;
@@ -114,25 +108,22 @@ void MainWindow::keyPressEvent(QKeyEvent *event)
         handleAction(QStringLiteral("CE"));
         break;
     default:
-        // 未识别的按键交给基类处理（保持原有快捷键等默认行为）
         QMainWindow::keyPressEvent(event);
         return;
     }
     event->accept();
 }
-// ============================================================================
+
 // 统一动作处理：数字 / 小数点 / 运算符 / 等号 / 清除 / 退格
-// ============================================================================
 void MainWindow::handleAction(const QString &action)
 {
-    // 错误态（除数为 0 等）下除清除外一律忽略，防止基于非法状态继续运算
+    // 错误态（除数为 0 等）下除清除外一律忽略
     if (m_errorState && action != "C" && action != "CE")
         return;
 
-    // ---- 数字输入 ----
+    // 数字输入
     if (action.size() == 1 && action.at(0).isDigit()) {
         prepareNewOperand();
-        // 一元运算刚得到的结果视为新操作数的开始，续输数字时重新开始而不是拼接
         if (m_inputIsResult) {
             m_currentInput.clear();
             m_inputIsResult = false;
@@ -149,7 +140,7 @@ void MainWindow::handleAction(const QString &action)
         return;
     }
 
-    // ---- 小数点：同一操作数内只允许一个 ----
+    // 小数点：同一操作数内只允许一个
     if (action == ".") {
         prepareNewOperand();
         if (m_inputIsResult) {
@@ -168,7 +159,7 @@ void MainWindow::handleAction(const QString &action)
         return;
     }
 
-    // ---- 二元运算符 + - * / ----
+    // 二元运算符
     if (action == "+" || action == "-" || action == "*" || action == "/") {
         const QChar op = action.at(0);
         if (!m_currentInput.isEmpty()) {
@@ -195,14 +186,14 @@ void MainWindow::handleAction(const QString &action)
                 m_inputIsResult = false;
             }
         }
-        // 输入为空时：已有运算符则只替换（连续按运算符的异常输入），否则以当前显示值为第一操作数
+        // 输入为空时：已有运算符则只替换，否则以当前显示值为第一操作数
         m_pendingOp = op;
         m_resultShown = false;
         render();
         return;
     }
 
-    // ---- 等号：按 = 才出最终结果 ----
+    // 等号：按 = 才出最终结果
     if (action == "=") {
         if (m_pendingOp.isNull()) {
             // 没有未完成的运算：有历史运算时重复上一次运算（连续按 =）
@@ -248,7 +239,7 @@ void MainWindow::handleAction(const QString &action)
         return;
     }
 
-    // ---- C：全部复位 ----
+    // C：全部复位
     if (action == "C") {
         m_accumulator = 0;
         m_pendingOp = QChar();
@@ -263,7 +254,7 @@ void MainWindow::handleAction(const QString &action)
         return;
     }
 
-    // ---- CE：只清除当前正在输入的操作数 ----
+    // CE：只清除当前正在输入的操作数
     if (action == "CE") {
         m_errorState = false;
         m_errorText.clear();
@@ -280,27 +271,26 @@ void MainWindow::handleAction(const QString &action)
         return;
     }
 
-    // ---- 扩展的一元运算：± % √ x² 1/x ----
+    // 扩展的一元运算：± % √ x² 1/x
     if (action == "neg" || action == "percent" || action == "sqrt" || action == "sqr"
         || action == "recip") {
         applyUnary(action);
         return;
     }
 
-    // ---- 退格：只在输入过程中生效 ----
+    // 退格：只在输入过程中生效
     if (action == "backspace") {
         if (m_resultShown || m_currentInput.isEmpty()) {
-            // 输入为空但已挂起运算符时，退格应能撤销该运算符（如 "12 +" → "12"）
             if (!m_resultShown && m_currentInput.isEmpty() && !m_pendingOp.isNull()) {
                 m_pendingOp = QChar(); // 撤销挂起的运算符后回到第一操作数
                 render();
             }
-            return; // 结果态/空输入直接忽略，避免越界删除（原实现会出错）
+            return; // 结果态/空输入直接忽略，避免越界删除
         }
         m_currentInput.chop(1);
         if (m_currentInput == "-")
-            m_currentInput.clear(); // 光删掉负号时退回空输入
-        m_inputIsResult = false;    // 用户已在手工编辑，不再按"新操作数"处理
+            m_currentInput.clear();
+        m_inputIsResult = false;
         render();
         return;
     }
@@ -308,19 +298,12 @@ void MainWindow::handleAction(const QString &action)
     qWarning("未处理的动作: %s", qPrintable(action));
 }
 
-// ============================================================================
-// 辅助函数
-// ============================================================================
-
-// 一元运算：作用于"正在输入的操作数"，没有输入时作用于当前显示的结果。
-// 结果写回状态机后复用 render()，与二元运算共用显示逻辑。
-//   neg:±取反  percent:÷100  sqrt:平方根  sqr:平方  recip:倒数
 void MainWindow::applyUnary(const QString &kind)
 {
     const bool hasInput = !m_currentInput.isEmpty();
     const double v = hasInput ? m_currentInput.toDouble() : m_accumulator;
 
-    // 结果写到哪里：有输入→更新操作数文本；无输入→更新累加器（结果）
+    // 结果写到哪里：有输入→更新操作数文本；无输入→更新累加器
     const auto commit = [this, hasInput](double r, const QString &text) {
         if (!std::isfinite(r)) {
             setError(QStringLiteral("错误:数值溢出"));
@@ -430,7 +413,7 @@ void MainWindow::prepareNewOperand()
     m_inputIsResult = false;
 }
 
-// 显示规则：错误信息 > 运算中的表达式（第一操作数 运算符 第二操作数） > 正在输入的操作数 > 结果
+// 显示规则：错误信息 > 运算中的表达式 > 正在输入的操作数 > 结果
 void MainWindow::render()
 {
     if (m_errorState) {

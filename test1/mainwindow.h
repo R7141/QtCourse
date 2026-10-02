@@ -19,8 +19,7 @@ public:
     ~MainWindow() override;
 
 protected:
-    // 键盘事件：把按键翻译成与鼠标点击完全相同的 action，
-    // 再交给 handleAction，保证两套输入走同一套处理逻辑
+    // 键盘事件：把按键翻译成与鼠标点击完全相同的 action，再交给 handleAction
     void keyPressEvent(QKeyEvent *event) override;
 
 private slots:
@@ -28,9 +27,7 @@ private slots:
     void onButtonClicked();
 
 private:
-    // ===== 鼠标与键盘共用的唯一动作处理入口 =====
-    // action 取值："0"~"9" "." "+" "-" "*" "/" "=" "C" "CE" "backspace"
-    //             "neg" "percent" "sqrt" "sqr" "recip"
+    // 鼠标与键盘共用的唯一动作处理入口
     void handleAction(const QString &action);
 
     double calculate(double a, QChar op, double b, bool *ok) const;
@@ -54,4 +51,4 @@ private:
     QString m_errorText;            // 错误提示文本
 };
 
-#endif // MAINWINDOW_H
+#endif
