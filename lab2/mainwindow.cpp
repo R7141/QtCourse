@@ -1,11 +1,17 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "codeeditor.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+
+    ui->actionShowLineNumbers->setCheckable(true);
+    ui->actionShowLineNumbers->setChecked(true);
+    connect(ui->actionShowLineNumbers, &QAction::toggled,
+            ui->plainTextEdit, &CodeEditor::setLineNumbersVisible);
 
     statusLabel.setMaximumWidth(150);
     statusLabel.setText("length:"+QString::number(0)+" lines:"+QString::number(1));
