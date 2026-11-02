@@ -28,6 +28,7 @@ private slots:
     void newFile();
     void openFile();
     void updateWindowTitle();
+    void updateActions();
 
 private:
     bool saveFile();

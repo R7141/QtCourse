@@ -2,6 +2,8 @@
 #include "ui_mainwindow.h"
 #include "codeeditor.h"
 
+#include <QApplication>
+#include <QClipboard>
 #include <QCloseEvent>
 #include <QDir>
 #include <QFile>
@@ -30,6 +32,30 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->plainTextEdit->document(), &QTextDocument::modificationChanged,
             this, &MainWindow::updateWindowTitle);
 
+    connect(ui->actionUndo, &QAction::triggered,
+            ui->plainTextEdit, &QPlainTextEdit::undo);
+    connect(ui->actionRedo, &QAction::triggered,
+            ui->plainTextEdit, &QPlainTextEdit::redo);
+    connect(ui->actionCut, &QAction::triggered,
+            ui->plainTextEdit, &QPlainTextEdit::cut);
+    connect(ui->actionCopy, &QAction::triggered,
+            ui->plainTextEdit, &QPlainTextEdit::copy);
+    connect(ui->actionPaste, &QAction::triggered,
+            ui->plainTextEdit, &QPlainTextEdit::paste);
+    connect(ui->actionAll, &QAction::triggered,
+            ui->plainTextEdit, &QPlainTextEdit::selectAll);
+
+    connect(ui->plainTextEdit, &QPlainTextEdit::copyAvailable,
+            this, &MainWindow::updateActions);
+    connect(ui->plainTextEdit, &QPlainTextEdit::undoAvailable,
+            this, &MainWindow::updateActions);
+    connect(ui->plainTextEdit, &QPlainTextEdit::redoAvailable,
+            this, &MainWindow::updateActions);
+    connect(ui->plainTextEdit, &QPlainTextEdit::cursorPositionChanged,
+            this, &MainWindow::updateActions);
+    connect(QApplication::clipboard(), &QClipboard::dataChanged,
+            this, &MainWindow::updateActions);
+
     statusLabel.setMaximumWidth(150);
     statusLabel.setText("length:"+QString::number(0)+" lines:"+QString::number(1));
     ui->statusbar->addPermanentWidget(&statusLabel);
@@ -43,6 +69,7 @@ MainWindow::MainWindow(QWidget *parent)
     ui->statusbar->addPermanentWidget(author);
 
     setCurrentFile(QString());
+    updateActions();
 }
 
 MainWindow::~MainWindow()
@@ -66,6 +93,7 @@ void MainWindow::newFile()
     ui->plainTextEdit->clear();
     ui->plainTextEdit->document()->setModified(false);
     setCurrentFile(QString());
+    updateActions();
     ui->plainTextEdit->setFocus();
 }
 
@@ -104,6 +132,7 @@ void MainWindow::openFile()
     ui->plainTextEdit->setPlainText(content);
     ui->plainTextEdit->document()->setModified(false);
     setCurrentFile(fileName);
+    updateActions();
     ui->plainTextEdit->setFocus();
 }
 
@@ -203,4 +232,15 @@ void MainWindow::updateWindowTitle()
 
     setWindowTitle(tr("%1[*] - 简单文本编辑器").arg(displayName));
     setWindowModified(ui->plainTextEdit->document()->isModified());
+}
+
+void MainWindow::updateActions()
+{
+    const bool hasSelection = ui->plainTextEdit->textCursor().hasSelection();
+
+    ui->actionCut->setEnabled(hasSelection);
+    ui->actionCopy->setEnabled(hasSelection);
+    ui->actionPaste->setEnabled(ui->plainTextEdit->canPaste());
+    ui->actionUndo->setEnabled(ui->plainTextEdit->document()->isUndoAvailable());
+    ui->actionRedo->setEnabled(ui->plainTextEdit->document()->isRedoAvailable());
 }
