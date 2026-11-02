@@ -29,6 +29,12 @@ private slots:
     void openFile();
     void updateWindowTitle();
     void updateActions();
+    void updateStatusBar();
+    void updateWordWrap(bool enabled);
+    void chooseFont();
+    void chooseFontColor();
+    void chooseTextBackground();
+    void chooseEditorBackground();
 
 private:
     bool saveFile();

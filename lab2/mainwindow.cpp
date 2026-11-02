@@ -5,11 +5,16 @@
 #include <QApplication>
 #include <QClipboard>
 #include <QCloseEvent>
+#include <QColorDialog>
 #include <QDir>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QFontDialog>
 #include <QMessageBox>
+#include <QPalette>
+#include <QTextCharFormat>
+#include <QTextCursor>
 #include <QTextDocument>
 #include <QTextStream>
 
@@ -19,10 +24,24 @@ MainWindow::MainWindow(QWidget *parent)
 {
     ui->setupUi(this);
 
-    ui->actionShowLineNumbers->setCheckable(true);
-    ui->actionShowLineNumbers->setChecked(true);
     connect(ui->actionShowLineNumbers, &QAction::toggled,
             ui->plainTextEdit, &CodeEditor::setLineNumbersVisible);
+    connect(ui->actionWordWrap, &QAction::toggled,
+            this, &MainWindow::updateWordWrap);
+    connect(ui->actionToolBar, &QAction::toggled, this, [this](bool visible) {
+        ui->toolBar->setVisible(visible);
+    });
+    connect(ui->actionStatusBar, &QAction::toggled, this, [this](bool visible) {
+        ui->statusbar->setVisible(visible);
+    });
+
+    connect(ui->actionFont, &QAction::triggered, this, &MainWindow::chooseFont);
+    connect(ui->actionFontColor, &QAction::triggered,
+            this, &MainWindow::chooseFontColor);
+    connect(ui->actionTextBackground, &QAction::triggered,
+            this, &MainWindow::chooseTextBackground);
+    connect(ui->actionEditorBackgroundColor, &QAction::triggered,
+            this, &MainWindow::chooseEditorBackground);
 
     connect(ui->actionNew, &QAction::triggered, this, &MainWindow::newFile);
     connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openFile);
@@ -55,6 +74,10 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::updateActions);
     connect(QApplication::clipboard(), &QClipboard::dataChanged,
             this, &MainWindow::updateActions);
+    connect(ui->plainTextEdit, &QPlainTextEdit::textChanged,
+            this, &MainWindow::updateStatusBar);
+    connect(ui->plainTextEdit, &QPlainTextEdit::cursorPositionChanged,
+            this, &MainWindow::updateStatusBar);
 
     statusLabel.setMaximumWidth(150);
     statusLabel.setText("length:"+QString::number(0)+" lines:"+QString::number(1));
@@ -70,6 +93,8 @@ MainWindow::MainWindow(QWidget *parent)
 
     setCurrentFile(QString());
     updateActions();
+    updateWordWrap(ui->actionWordWrap->isChecked());
+    updateStatusBar();
 }
 
 MainWindow::~MainWindow()
@@ -94,6 +119,7 @@ void MainWindow::newFile()
     ui->plainTextEdit->document()->setModified(false);
     setCurrentFile(QString());
     updateActions();
+    updateStatusBar();
     ui->plainTextEdit->setFocus();
 }
 
@@ -133,6 +159,7 @@ void MainWindow::openFile()
     ui->plainTextEdit->document()->setModified(false);
     setCurrentFile(fileName);
     updateActions();
+    updateStatusBar();
     ui->plainTextEdit->setFocus();
 }
 
@@ -243,4 +270,86 @@ void MainWindow::updateActions()
     ui->actionPaste->setEnabled(ui->plainTextEdit->canPaste());
     ui->actionUndo->setEnabled(ui->plainTextEdit->document()->isUndoAvailable());
     ui->actionRedo->setEnabled(ui->plainTextEdit->document()->isRedoAvailable());
+}
+
+void MainWindow::updateStatusBar()
+{
+    const QTextDocument *document = ui->plainTextEdit->document();
+    const QTextCursor cursor = ui->plainTextEdit->textCursor();
+
+    statusLabel.setText(tr("length:%1 lines:%2")
+                        .arg(document->characterCount() - 1)
+                        .arg(document->blockCount()));
+    statusCursorLabel.setText(tr("Ln:%1 Col:%2")
+                              .arg(cursor.blockNumber() + 1)
+                              .arg(cursor.positionInBlock() + 1));
+}
+
+void MainWindow::updateWordWrap(bool enabled)
+{
+    ui->plainTextEdit->setLineWrapMode(enabled
+                                       ? QPlainTextEdit::WidgetWidth
+                                       : QPlainTextEdit::NoWrap);
+}
+
+void MainWindow::chooseFont()
+{
+    bool ok = false;
+    const QFont font = QFontDialog::getFont(
+                &ok, ui->plainTextEdit->font(), this, tr("选择字体"));
+    if (!ok)
+        return;
+
+    ui->plainTextEdit->document()->setDefaultFont(font);
+    ui->plainTextEdit->setFont(font);
+    ui->plainTextEdit->refreshLineNumberArea();
+}
+
+void MainWindow::chooseFontColor()
+{
+    const QColor color = QColorDialog::getColor(
+                ui->plainTextEdit->palette().color(QPalette::Text),
+                this, tr("字体颜色"));
+    if (!color.isValid())
+        return;
+
+    QTextCharFormat format;
+    format.setForeground(color);
+
+    QTextCursor cursor = ui->plainTextEdit->textCursor();
+    if (cursor.hasSelection())
+        cursor.mergeCharFormat(format);
+    else
+        ui->plainTextEdit->mergeCurrentCharFormat(format);
+}
+
+void MainWindow::chooseTextBackground()
+{
+    const QColor color = QColorDialog::getColor(
+                Qt::yellow, this, tr("文字背景色"));
+    if (!color.isValid())
+        return;
+
+    QTextCharFormat format;
+    format.setBackground(color);
+
+    QTextCursor cursor = ui->plainTextEdit->textCursor();
+    if (cursor.hasSelection())
+        cursor.mergeCharFormat(format);
+    else
+        ui->plainTextEdit->mergeCurrentCharFormat(format);
+}
+
+void MainWindow::chooseEditorBackground()
+{
+    const QColor color = QColorDialog::getColor(
+                ui->plainTextEdit->palette().color(QPalette::Base),
+                this, tr("编辑器背景色"));
+    if (!color.isValid())
+        return;
+
+    QPalette palette = ui->plainTextEdit->palette();
+    palette.setColor(QPalette::Base, color);
+    ui->plainTextEdit->setPalette(palette);
+    ui->plainTextEdit->viewport()->setPalette(palette);
 }

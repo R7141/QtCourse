@@ -368,6 +368,12 @@
    <property name="toolTip">
     <string>自动换行</string>
    </property>
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
    <property name="menuRole">
     <enum>QAction::NoRole</enum>
    </property>
@@ -382,6 +388,12 @@
    </property>
    <property name="toolTip">
     <string>显示行号</string>
+   </property>
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
    </property>
    <property name="shortcut">
     <string>Ctrl+L</string>
@@ -416,6 +428,12 @@
    <property name="toolTip">
     <string>工具栏</string>
    </property>
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
    <property name="menuRole">
     <enum>QAction::NoRole</enum>
    </property>
@@ -430,6 +448,12 @@
    </property>
    <property name="toolTip">
     <string>状态栏</string>
+   </property>
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
    </property>
    <property name="menuRole">
     <enum>QAction::NoRole</enum>
