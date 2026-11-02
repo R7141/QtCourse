@@ -1,0 +1,20 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/format_list_numbered_rtl_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/wrap_text_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/bottom_app_bar_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/build_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/find_replace_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/search_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/content_paste_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/content_copy_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/content_cut_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/save_as_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/save_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/undo_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/redo_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/folder_open_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/add_notes_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+        <file>icons/format_size_24dp_1F1F1F_FILL0_wght400_GRAD0_opsz24.svg</file>
+    </qresource>
+</RCC>
