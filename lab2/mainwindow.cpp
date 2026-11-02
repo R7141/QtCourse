@@ -105,16 +105,16 @@ MainWindow::MainWindow(QWidget *parent)
     connect(ui->plainTextEdit, &QPlainTextEdit::cursorPositionChanged,
             this, &MainWindow::updateStatusBar);
 
-    statusLabel.setMaximumWidth(150);
-    statusLabel.setText("length:"+QString::number(0)+" lines:"+QString::number(1));
+    statusLabel.setMaximumWidth(280);
+    statusLabel.setText(tr("length: %1    lines: %2").arg(0).arg(1));
     ui->statusbar->addPermanentWidget(&statusLabel);
 
-    statusCursorLabel.setMaximumWidth(150);
-    statusCursorLabel.setText("Ln:"+QString::number(0)+" Col:"+QString::number(1));
+    statusCursorLabel.setMaximumWidth(180);
+    statusCursorLabel.setText(tr("  Ln: %1    Col: %2").arg(0).arg(1));
     ui->statusbar->addPermanentWidget(&statusCursorLabel);
 
     QLabel *author=new QLabel(ui->statusbar);
-    author->setText(tr("E"));
+    author->setText(tr("郭碧洳"));
     ui->statusbar->addPermanentWidget(author);
 
     setCurrentFile(QString());
@@ -160,6 +160,13 @@ void MainWindow::openFile()
                 tr("文本文件 (*.txt);;C++ 文件 (*.cpp *.h);;所有文件 (*.*)"));
     if (fileName.isEmpty())
         return;
+
+    const QFileInfo fileInfo(fileName);
+    if (!fileInfo.exists() || !fileInfo.isFile()) {
+        QMessageBox::warning(this, tr("打开文件"),
+                             tr("文件不存在或不是普通文件：\n%1").arg(fileName));
+        return;
+    }
 
     QFile file(fileName);
     if (!file.open(QIODevice::ReadOnly | QIODevice::Text)) {
@@ -307,10 +314,10 @@ void MainWindow::updateStatusBar()
     const QTextDocument *document = ui->plainTextEdit->document();
     const QTextCursor cursor = ui->plainTextEdit->textCursor();
 
-    statusLabel.setText(tr("length:%1 lines:%2")
+    statusLabel.setText(tr("length: %1    lines: %2")
                         .arg(document->characterCount() - 1)
                         .arg(document->blockCount()));
-    statusCursorLabel.setText(tr("Ln:%1 Col:%2")
+    statusCursorLabel.setText(tr("  Ln: %1    Col: %2")
                               .arg(cursor.blockNumber() + 1)
                               .arg(cursor.positionInBlock() + 1));
 }
@@ -320,6 +327,7 @@ void MainWindow::updateWordWrap(bool enabled)
     ui->plainTextEdit->setLineWrapMode(enabled
                                        ? QPlainTextEdit::WidgetWidth
                                        : QPlainTextEdit::NoWrap);
+    ui->plainTextEdit->refreshLineNumberArea();
 }
 
 void MainWindow::chooseFont()
@@ -409,9 +417,15 @@ void MainWindow::showReplaceDialog()
 void MainWindow::findText(const QString &text, bool caseSensitive,
                           bool backward, bool wrap)
 {
+    findAndSelect(text, caseSensitive, backward, wrap, true);
+}
+
+bool MainWindow::findAndSelect(const QString &text, bool caseSensitive,
+                               bool backward, bool wrap, bool showNotFound)
+{
     if (text.isEmpty()) {
         QMessageBox::information(this, tr("查找"), tr("请输入要查找的内容。"));
-        return;
+        return false;
     }
 
     QTextDocument::FindFlags flags;
@@ -436,39 +450,52 @@ void MainWindow::findText(const QString &text, bool caseSensitive,
     }
 
     if (found.isNull()) {
-        QMessageBox::information(this, tr("查找"),
-                                 tr("未找到“%1”。").arg(text));
-        return;
+        if (showNotFound) {
+            QMessageBox::information(this, tr("查找"),
+                                     tr("未找到“%1”。").arg(text));
+        }
+        return false;
     }
 
     ui->plainTextEdit->setTextCursor(found);
     ui->plainTextEdit->ensureCursorVisible();
     statusBar()->showMessage(tr("已找到“%1”").arg(text), 2000);
+    return true;
 }
 
 void MainWindow::replaceText(const QString &findText,
                              const QString &replaceText,
-                             bool caseSensitive, bool wrap)
+                             bool caseSensitive, bool backward, bool wrap)
 {
     if (findText.isEmpty()) {
         QMessageBox::information(this, tr("替换"), tr("请输入要查找的内容。"));
         return;
     }
 
-    QTextCursor cursor = ui->plainTextEdit->textCursor();
-    if (cursor.hasSelection()) {
-        const Qt::CaseSensitivity sensitivity = caseSensitive
-                ? Qt::CaseSensitive
-                : Qt::CaseInsensitive;
+    const Qt::CaseSensitivity sensitivity = caseSensitive
+            ? Qt::CaseSensitive
+            : Qt::CaseInsensitive;
 
-        if (QString::compare(cursor.selectedText(), findText, sensitivity) == 0) {
-            cursor.insertText(replaceText);
-            ui->plainTextEdit->setTextCursor(cursor);
-            statusBar()->showMessage(tr("已替换 1 处"), 2000);
-        }
+    QTextCursor cursor = ui->plainTextEdit->textCursor();
+    const bool selectionMatches = cursor.hasSelection()
+            && QString::compare(cursor.selectedText(), findText, sensitivity) == 0;
+
+    if (!selectionMatches) {
+        if (!findAndSelect(findText, caseSensitive, backward, wrap, true))
+            return;
+
+        cursor = ui->plainTextEdit->textCursor();
     }
 
-    this->findText(findText, caseSensitive, false, wrap);
+    cursor.insertText(replaceText);
+    if (backward && !replaceText.isEmpty())
+        cursor.setPosition(cursor.position() - replaceText.length());
+
+    ui->plainTextEdit->setTextCursor(cursor);
+
+    findAndSelect(findText, caseSensitive, backward, wrap, false);
+    statusBar()->showMessage(tr("已替换 1 处"), 2000);
+    QMessageBox::information(this, tr("替换"), tr("已成功替换 1 处。"));
 }
 
 void MainWindow::replaceAllText(const QString &findText,
@@ -510,6 +537,8 @@ void MainWindow::replaceAllText(const QString &findText,
     }
 
     statusBar()->showMessage(tr("已替换 %1 处").arg(count), 3000);
+    QMessageBox::information(this, tr("替换"),
+                             tr("已成功替换 %1 处。").arg(count));
 }
 
 void MainWindow::showAboutDialog()

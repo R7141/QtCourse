@@ -43,7 +43,7 @@ private slots:
     void findText(const QString &text, bool caseSensitive,
                   bool backward, bool wrap);
     void replaceText(const QString &findText, const QString &replaceText,
-                     bool caseSensitive, bool wrap);
+                     bool caseSensitive, bool backward, bool wrap);
     void replaceAllText(const QString &findText, const QString &replaceText,
                         bool caseSensitive, bool wrap);
     void showAboutDialog();
@@ -54,6 +54,8 @@ private:
     bool saveFileAs();
     bool saveToFile(const QString &fileName, bool showError = true);
     bool maybeSave();
+    bool findAndSelect(const QString &text, bool caseSensitive,
+                       bool backward, bool wrap, bool showNotFound);
     void setCurrentFile(const QString &fileName);
 
     Ui::MainWindow *ui;

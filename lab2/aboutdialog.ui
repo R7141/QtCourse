@@ -55,9 +55,9 @@
     </widget>
    </item>
    <item>
-    <widget class="QLabel" name="courseLabel">
+    <widget class="QLabel" name="authorLabel">
      <property name="text">
-      <string>Qt 应用程序开发 · 实验2</string>
+      <string>开发者：郭碧洳</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>
@@ -65,9 +65,19 @@
     </widget>
    </item>
    <item>
-    <widget class="QLabel" name="authorLabel">
+    <widget class="QLabel" name="studentIdLabel">
      <property name="text">
-      <string>作者：E</string>
+      <string>学号：2024414300104</string>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignCenter</set>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QLabel" name="emailLabel">
+     <property name="text">
+      <string>邮箱：2639462369@qq.com</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignCenter</set>

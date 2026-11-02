@@ -23,7 +23,7 @@ signals:
     void findRequested(const QString &text, bool caseSensitive,
                        bool backward, bool wrap);
     void replaceRequested(const QString &findText, const QString &replaceText,
-                          bool caseSensitive, bool wrap);
+                          bool caseSensitive, bool backward, bool wrap);
     void replaceAllRequested(const QString &findText, const QString &replaceText,
                              bool caseSensitive, bool wrap);
 

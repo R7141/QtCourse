@@ -5,6 +5,9 @@
 #include <QPainter>
 #include <QResizeEvent>
 #include <QTextBlock>
+#include <QTextDocument>
+#include <QTextLayout>
+#include <QTextLine>
 
 class LineNumberArea : public QWidget
 {
@@ -39,6 +42,10 @@ CodeEditor::CodeEditor(QWidget *parent)
             this, &CodeEditor::updateLineNumberAreaWidth);
     connect(this, &QPlainTextEdit::updateRequest,
             this, &CodeEditor::updateLineNumberArea);
+    connect(this, &QPlainTextEdit::textChanged, this, [this]() {
+        updateLineNumberAreaWidth(0);
+        lineNumberArea->update();
+    });
 
     updateLineNumberAreaWidth(0);
     setLineNumbersVisible(true);
@@ -50,7 +57,7 @@ int CodeEditor::lineNumberAreaWidth() const
         return 0;
 
     int digits = 1;
-    int max = qMax(1, blockCount());
+    int max = qMax(1, document()->lineCount());
     while (max >= 10) {
         max /= 10;
         ++digits;
@@ -66,7 +73,6 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
     painter.fillRect(event->rect(), palette().color(QPalette::Window));
 
     QTextBlock block = firstVisibleBlock();
-    int blockNumber = block.blockNumber();
     int top = qRound(blockBoundingGeometry(block).translated(contentOffset()).top());
     int bottom = top + qRound(blockBoundingRect(block).height());
 
@@ -74,15 +80,34 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
 
     while (block.isValid() && top <= event->rect().bottom()) {
         if (block.isVisible() && bottom >= event->rect().top()) {
-            painter.drawText(0, top, lineNumberArea->width() - 4,
-                             fontMetrics().height(), Qt::AlignRight,
-                             QString::number(blockNumber + 1));
+            QTextLayout *layout = block.layout();
+            const int firstLineNumber = qMax(0, block.firstLineNumber()) + 1;
+            const int lineCount = layout ? layout->lineCount() : 0;
+
+            if (lineCount > 0) {
+                for (int i = 0; i < lineCount; ++i) {
+                    const QTextLine line = layout->lineAt(i);
+                    const int lineTop = top + qRound(line.y());
+                    const int lineHeight = qRound(line.height());
+
+                    if (lineTop + lineHeight >= event->rect().top()
+                            && lineTop <= event->rect().bottom()) {
+                        painter.drawText(0, lineTop, lineNumberArea->width() - 4,
+                                         lineHeight,
+                                         Qt::AlignRight | Qt::AlignVCenter,
+                                         QString::number(firstLineNumber + i));
+                    }
+                }
+            } else {
+                painter.drawText(0, top, lineNumberArea->width() - 4,
+                                 fontMetrics().height(), Qt::AlignRight,
+                                 QString::number(firstLineNumber));
+            }
         }
 
         block = block.next();
         top = bottom;
         bottom = top + qRound(blockBoundingRect(block).height());
-        ++blockNumber;
     }
 }
 
@@ -117,9 +142,12 @@ void CodeEditor::resizeEvent(QResizeEvent *event)
 {
     QPlainTextEdit::resizeEvent(event);
 
+    updateLineNumberAreaWidth(0);
+
     const QRect cr = contentsRect();
     lineNumberArea->setGeometry(QRect(cr.left(), cr.top(),
                                      lineNumberAreaWidth(), cr.height()));
+    lineNumberArea->update();
 }
 
 void CodeEditor::updateLineNumberAreaWidth(int newBlockCount)

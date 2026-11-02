@@ -8,19 +8,14 @@ FindDialog::FindDialog(QWidget *parent)
     ui->setupUi(this);
     setModal(false);
 
-    connect(ui->closeButton, &QPushButton::clicked, this, &QDialog::close);
+    connect(ui->cancelButton, &QPushButton::clicked, this, &QDialog::close);
     connect(ui->findLineEdit, &QLineEdit::returnPressed,
             ui->findNextButton, &QPushButton::click);
 
     connect(ui->findNextButton, &QPushButton::clicked, this, [this]() {
         emit findRequested(ui->findLineEdit->text(),
-                           ui->caseCheckBox->isChecked(), false,
-                           ui->wrapCheckBox->isChecked());
-    });
-    connect(ui->findPreviousButton, &QPushButton::clicked, this, [this]() {
-        emit findRequested(ui->findLineEdit->text(),
-                           ui->caseCheckBox->isChecked(), true,
-                           ui->wrapCheckBox->isChecked());
+                           ui->caseCheckBox->isChecked(),
+                           ui->upRadioButton->isChecked(), true);
     });
 }
 
