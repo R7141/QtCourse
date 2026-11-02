@@ -1,6 +1,8 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "codeeditor.h"
+#include "finddialog.h"
+#include "replacedialog.h"
 
 #include <QApplication>
 #include <QClipboard>
@@ -42,6 +44,21 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::chooseTextBackground);
     connect(ui->actionEditorBackgroundColor, &QAction::triggered,
             this, &MainWindow::chooseEditorBackground);
+    connect(ui->action_Find, &QAction::triggered,
+            this, &MainWindow::showFindDialog);
+    connect(ui->actionReplace, &QAction::triggered,
+            this, &MainWindow::showReplaceDialog);
+
+    findDialog = new FindDialog(this);
+    replaceDialog = new ReplaceDialog(this);
+    connect(findDialog, &FindDialog::findRequested,
+            this, &MainWindow::findText);
+    connect(replaceDialog, &ReplaceDialog::findRequested,
+            this, &MainWindow::findText);
+    connect(replaceDialog, &ReplaceDialog::replaceRequested,
+            this, &MainWindow::replaceText);
+    connect(replaceDialog, &ReplaceDialog::replaceAllRequested,
+            this, &MainWindow::replaceAllText);
 
     connect(ui->actionNew, &QAction::triggered, this, &MainWindow::newFile);
     connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openFile);
@@ -352,4 +369,132 @@ void MainWindow::chooseEditorBackground()
     palette.setColor(QPalette::Base, color);
     ui->plainTextEdit->setPalette(palette);
     ui->plainTextEdit->viewport()->setPalette(palette);
+}
+
+void MainWindow::showFindDialog()
+{
+    QString selected = ui->plainTextEdit->textCursor().selectedText();
+    selected.replace(QChar::ParagraphSeparator, QLatin1Char('\n'));
+
+    findDialog->setFindText(selected);
+    findDialog->show();
+    findDialog->raise();
+    findDialog->activateWindow();
+}
+
+void MainWindow::showReplaceDialog()
+{
+    QString selected = ui->plainTextEdit->textCursor().selectedText();
+    selected.replace(QChar::ParagraphSeparator, QLatin1Char('\n'));
+
+    replaceDialog->setFindText(selected);
+    replaceDialog->show();
+    replaceDialog->raise();
+    replaceDialog->activateWindow();
+}
+
+void MainWindow::findText(const QString &text, bool caseSensitive,
+                          bool backward, bool wrap)
+{
+    if (text.isEmpty()) {
+        QMessageBox::information(this, tr("查找"), tr("请输入要查找的内容。"));
+        return;
+    }
+
+    QTextDocument::FindFlags flags;
+    if (caseSensitive)
+        flags |= QTextDocument::FindCaseSensitively;
+    if (backward)
+        flags |= QTextDocument::FindBackward;
+
+    QTextCursor cursor = ui->plainTextEdit->textCursor();
+    if (cursor.hasSelection()) {
+        cursor.setPosition(backward ? cursor.selectionStart()
+                                    : cursor.selectionEnd());
+    }
+
+    QTextCursor found = ui->plainTextEdit->document()->find(text, cursor, flags);
+    if (found.isNull() && wrap) {
+        QTextCursor start(ui->plainTextEdit->document());
+        if (backward)
+            start.movePosition(QTextCursor::End);
+
+        found = ui->plainTextEdit->document()->find(text, start, flags);
+    }
+
+    if (found.isNull()) {
+        QMessageBox::information(this, tr("查找"),
+                                 tr("未找到“%1”。").arg(text));
+        return;
+    }
+
+    ui->plainTextEdit->setTextCursor(found);
+    ui->plainTextEdit->ensureCursorVisible();
+    statusBar()->showMessage(tr("已找到“%1”").arg(text), 2000);
+}
+
+void MainWindow::replaceText(const QString &findText,
+                             const QString &replaceText,
+                             bool caseSensitive, bool wrap)
+{
+    if (findText.isEmpty()) {
+        QMessageBox::information(this, tr("替换"), tr("请输入要查找的内容。"));
+        return;
+    }
+
+    QTextCursor cursor = ui->plainTextEdit->textCursor();
+    if (cursor.hasSelection()) {
+        const Qt::CaseSensitivity sensitivity = caseSensitive
+                ? Qt::CaseSensitive
+                : Qt::CaseInsensitive;
+
+        if (QString::compare(cursor.selectedText(), findText, sensitivity) == 0) {
+            cursor.insertText(replaceText);
+            ui->plainTextEdit->setTextCursor(cursor);
+            statusBar()->showMessage(tr("已替换 1 处"), 2000);
+        }
+    }
+
+    this->findText(findText, caseSensitive, false, wrap);
+}
+
+void MainWindow::replaceAllText(const QString &findText,
+                                const QString &replaceText,
+                                bool caseSensitive, bool wrap)
+{
+    Q_UNUSED(wrap)
+
+    if (findText.isEmpty()) {
+        QMessageBox::information(this, tr("替换"), tr("请输入要查找的内容。"));
+        return;
+    }
+
+    QTextDocument::FindFlags flags;
+    if (caseSensitive)
+        flags |= QTextDocument::FindCaseSensitively;
+
+    QTextDocument *document = ui->plainTextEdit->document();
+    QTextCursor cursor(document);
+    int count = 0;
+
+    cursor.beginEditBlock();
+    while (true) {
+        QTextCursor found = document->find(findText, cursor, flags);
+        if (found.isNull())
+            break;
+
+        const int start = found.selectionStart();
+        found.insertText(replaceText);
+        cursor.setPosition(start + replaceText.length());
+        ++count;
+    }
+    cursor.endEditBlock();
+
+    if (count == 0) {
+        QMessageBox::information(this, tr("替换"),
+                                 tr("未找到“%1”。").arg(findText));
+        return;
+    }
+
+    statusBar()->showMessage(tr("已替换 %1 处").arg(count), 3000);
 }

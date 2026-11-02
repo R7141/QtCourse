@@ -12,6 +12,8 @@ class MainWindow;
 QT_END_NAMESPACE
 
 class QCloseEvent;
+class FindDialog;
+class ReplaceDialog;
 
 class MainWindow : public QMainWindow
 {
@@ -35,6 +37,14 @@ private slots:
     void chooseFontColor();
     void chooseTextBackground();
     void chooseEditorBackground();
+    void showFindDialog();
+    void showReplaceDialog();
+    void findText(const QString &text, bool caseSensitive,
+                  bool backward, bool wrap);
+    void replaceText(const QString &findText, const QString &replaceText,
+                     bool caseSensitive, bool wrap);
+    void replaceAllText(const QString &findText, const QString &replaceText,
+                        bool caseSensitive, bool wrap);
 
 private:
     bool saveFile();
@@ -48,5 +58,7 @@ private:
     QLabel statusCursorLabel;
     QLabel statusLabel;
     QString currentFilePath;
+    FindDialog *findDialog = nullptr;
+    ReplaceDialog *replaceDialog = nullptr;
 };
 #endif // MAINWINDOW_H
