@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include "aboutdialog.h"
 #include "codeeditor.h"
 #include "finddialog.h"
 #include "replacedialog.h"
@@ -19,6 +20,7 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QTextStream>
+#include <QTimer>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -59,6 +61,13 @@ MainWindow::MainWindow(QWidget *parent)
             this, &MainWindow::replaceText);
     connect(replaceDialog, &ReplaceDialog::replaceAllRequested,
             this, &MainWindow::replaceAllText);
+    connect(ui->actionAbout, &QAction::triggered,
+            this, &MainWindow::showAboutDialog);
+
+    autoSaveTimer = new QTimer(this);
+    autoSaveTimer->setInterval(60 * 1000);
+    connect(autoSaveTimer, &QTimer::timeout, this, &MainWindow::autoSave);
+    autoSaveTimer->start();
 
     connect(ui->actionNew, &QAction::triggered, this, &MainWindow::newFile);
     connect(ui->actionOpen, &QAction::triggered, this, &MainWindow::openFile);
@@ -207,13 +216,15 @@ bool MainWindow::saveFileAs()
     return true;
 }
 
-bool MainWindow::saveToFile(const QString &fileName)
+bool MainWindow::saveToFile(const QString &fileName, bool showError)
 {
     QFile file(fileName);
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate | QIODevice::Text)) {
-        QMessageBox::warning(this, tr("保存文件"),
-                             tr("无法保存文件：\n%1\n\n%2")
-                             .arg(fileName, file.errorString()));
+        if (showError) {
+            QMessageBox::warning(this, tr("保存文件"),
+                                 tr("无法保存文件：\n%1\n\n%2")
+                                 .arg(fileName, file.errorString()));
+        }
         return false;
     }
 
@@ -228,9 +239,11 @@ bool MainWindow::saveToFile(const QString &fileName)
     file.close();
 
     if (!writeOk) {
-        QMessageBox::warning(this, tr("保存文件"),
-                             tr("写入文件失败：\n%1\n\n%2")
-                             .arg(fileName, errorString));
+        if (showError) {
+            QMessageBox::warning(this, tr("保存文件"),
+                                 tr("写入文件失败：\n%1\n\n%2")
+                                 .arg(fileName, errorString));
+        }
         return false;
     }
 
@@ -497,4 +510,23 @@ void MainWindow::replaceAllText(const QString &findText,
     }
 
     statusBar()->showMessage(tr("已替换 %1 处").arg(count), 3000);
+}
+
+void MainWindow::showAboutDialog()
+{
+    AboutDialog dialog(this);
+    dialog.exec();
+}
+
+void MainWindow::autoSave()
+{
+    if (currentFilePath.isEmpty()
+            || !ui->plainTextEdit->document()->isModified()) {
+        return;
+    }
+
+    if (saveToFile(currentFilePath, false))
+        statusBar()->showMessage(tr("已自动保存"), 2000);
+    else
+        statusBar()->showMessage(tr("自动保存失败"), 3000);
 }

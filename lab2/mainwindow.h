@@ -12,6 +12,7 @@ class MainWindow;
 QT_END_NAMESPACE
 
 class QCloseEvent;
+class QTimer;
 class FindDialog;
 class ReplaceDialog;
 
@@ -45,11 +46,13 @@ private slots:
                      bool caseSensitive, bool wrap);
     void replaceAllText(const QString &findText, const QString &replaceText,
                         bool caseSensitive, bool wrap);
+    void showAboutDialog();
+    void autoSave();
 
 private:
     bool saveFile();
     bool saveFileAs();
-    bool saveToFile(const QString &fileName);
+    bool saveToFile(const QString &fileName, bool showError = true);
     bool maybeSave();
     void setCurrentFile(const QString &fileName);
 
@@ -60,5 +63,6 @@ private:
     QString currentFilePath;
     FindDialog *findDialog = nullptr;
     ReplaceDialog *replaceDialog = nullptr;
+    QTimer *autoSaveTimer = nullptr;
 };
 #endif // MAINWINDOW_H
